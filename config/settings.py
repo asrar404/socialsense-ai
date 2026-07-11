@@ -1,18 +1,40 @@
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
 
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///socialsense.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': int(os.environ.get('DATABASE_POOL_SIZE', '10')),
+        'max_overflow': int(os.environ.get('DATABASE_MAX_OVERFLOW', '20')),
+        'pool_timeout': int(os.environ.get('DATABASE_POOL_TIMEOUT', '30')),
+        'pool_recycle': int(os.environ.get('DATABASE_POOL_RECYCLE', '1800')),
+        'pool_pre_ping': True,
+    }
+    SQLALCHEMY_ECHO = os.environ.get('DATABASE_ECHO', 'false').lower() == 'true'
+
     WTF_CSRF_ENABLED = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_DURATION = 86400 * 30
+
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+    CELERY_TASK_TRACK_STARTED = True
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '4'))
+    CELERY_TASK_ACKS_LATE = True
+    CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+    CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('MAX_JOB_RUNTIME', '600'))
+    CELERY_TASK_TIME_LIMIT = int(os.environ.get('MAX_JOB_RUNTIME', '600')) + 60
 
     YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
     REDDIT_CLIENT_ID = os.environ.get('REDDIT_CLIENT_ID', '')
@@ -28,7 +50,6 @@ class Config:
     JOB_LOG_RETENTION_DAYS = int(os.environ.get('JOB_LOG_RETENTION_DAYS', '30'))
     NOTIFICATION_RETENTION_DAYS = int(os.environ.get('NOTIFICATION_RETENTION_DAYS', '30'))
     REPORT_RETENTION_DAYS = int(os.environ.get('REPORT_RETENTION_DAYS', '30'))
-
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reports')
 
     ENABLE_TRANSCRIPT_ANALYSIS = os.environ.get('ENABLE_TRANSCRIPT_ANALYSIS', 'true').lower() == 'true'
@@ -48,6 +69,8 @@ class Config:
     MAX_HISTORY_VIDEOS = int(os.environ.get('MAX_HISTORY_VIDEOS', '100'))
     MAX_ENTITY_HISTORY = int(os.environ.get('MAX_ENTITY_HISTORY', '500'))
 
+    USE_CELERY = os.environ.get('USE_CELERY', 'false').lower() == 'true'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -60,4 +83,6 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
+    USE_CELERY = False

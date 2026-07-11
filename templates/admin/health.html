@@ -2,16 +2,73 @@
 {% block title %}System Health - SocialSense AI{% endblock %}
 {% block content %}
 <div class="row justify-content-center py-4">
-    <div class="col-md-8">
+    <div class="col-md-10">
         <h3 class="fw-bold mb-4"><i class="fas fa-heartbeat me-2 text-primary"></i>System Health</h3>
-        <div class="card border-secondary"><div class="card-body">
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-secondary h-100">
+                    <div class="card-body text-center">
+                        <div class="fs-1 text-{{ 'success' if health.database == 'connected' else 'danger' }} mb-1">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="text-muted small">Database</div>
+                        <span class="badge bg-{{ 'success' if health.database == 'connected' else 'danger' }}">{{ health.database }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-secondary h-100">
+                    <div class="card-body text-center">
+                        <div class="fs-1 text-{{ 'success' if health.redis_status == 'connected' else 'warning' }} mb-1">
+                            <i class="fas fa-memory"></i>
+                        </div>
+                        <div class="text-muted small">Redis</div>
+                        <span class="badge bg-{{ 'success' if health.redis_status == 'connected' else 'warning' }}">{{ health.redis_status }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-secondary h-100">
+                    <div class="card-body text-center">
+                        <div class="fs-1 text-{{ 'success' if health.celery_status == 'connected' else 'warning' }} mb-1">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="text-muted small">Celery</div>
+                        <span class="badge bg-{{ 'success' if health.celery_status == 'connected' else 'warning' }}">{{ health.celery_status }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-secondary h-100">
+                    <div class="card-body text-center">
+                        <div class="fs-1 text-info mb-1">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="text-muted small">Connection Pool</div>
+                        <span class="badge bg-info">{{ health.pool_checkedout }}/{{ health.pool_size }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-secondary mb-4"><div class="card-body">
             <table class="table table-dark table-borderless">
                 <tr><td>Database</td><td><span class="badge bg-{{ 'success' if health.database == 'connected' else 'danger' }}">{{ health.database }}</span></td></tr>
+                <tr><td>Redis</td><td><span class="badge bg-{{ 'success' if health.redis_status == 'connected' else 'warning' }}">{{ health.redis_status }}</span></td></tr>
+                <tr><td>Celery</td><td><span class="badge bg-{{ 'success' if health.celery_status == 'connected' else 'warning' }}">{{ health.celery_status }}</span></td></tr>
                 <tr><td>Worker Status</td><td><span class="badge bg-{{ 'success' if health.worker_status == 'active' else 'warning' }}">{{ health.worker_status }}</span></td></tr>
                 <tr><td>Pending Jobs</td><td>{{ health.pending_jobs }}</td></tr>
                 <tr><td>Running Jobs</td><td>{{ health.running_jobs }}</td></tr>
                 <tr><td>Failed Jobs</td><td>{{ health.failed_jobs }}</td></tr>
+                <tr><td>Queue Length</td><td>{{ health.queue_length }}</td></tr>
+                <tr><td>Active Workers</td><td>{{ health.active_workers }}</td></tr>
+                <tr><td>Active Jobs</td><td>{{ health.active_jobs }}</td></tr>
+                <tr><td>Connection Pool</td><td>{{ health.pool_checkedout }}/{{ health.pool_size }} (overflow: {{ health.pool_overflow }})</td></tr>
                 <tr><td>Latest Job</td><td>#{{ health.latest_job_id or 'N/A' }} ({{ health.latest_job_status or 'N/A' }})</td></tr>
+                <tr><td>Database Size</td><td>{{ health.database_size }}</td></tr>
+                <tr><td>Database Uptime</td><td>{{ health.database_uptime }}</td></tr>
+                <tr><td>Migration Version</td><td>{{ health.migration_version or 'N/A' }}</td></tr>
                 <tr><td>App Version</td><td>v{{ health.app_version }}</td></tr>
                 <tr><td>Environment</td><td>{{ health.environment }}</td></tr>
                 <tr><td>YouTube API</td><td><span class="badge bg-{{ 'success' if health.youtube_api == 'configured' else 'warning' }}">{{ health.youtube_api }}</span></td></tr>

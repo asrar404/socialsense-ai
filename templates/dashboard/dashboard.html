@@ -148,6 +148,46 @@
     </div>
 </div>
 
+{% if infra %}
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-secondary">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-server me-2"></i>Infrastructure Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 text-center">
+                    <div class="col-3">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Database</div>
+                            <span class="badge bg-{{ 'success' if infra.database == 'connected' else 'danger' }}">{{ infra.database }}</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Redis</div>
+                            <span class="badge bg-{{ 'success' if infra.redis == 'connected' else 'warning' }}">{{ infra.redis }}</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Celery</div>
+                            <span class="badge bg-{{ 'success' if infra.celery == 'connected' else 'warning' }}">{{ infra.celery }}</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Pool</div>
+                            <span class="badge bg-info">{{ infra.pool_checkedout }}/{{ infra.pool_size }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card border-secondary h-100">

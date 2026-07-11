@@ -437,7 +437,7 @@ class TestSystemHealthService:
         assert 'database' in health
         assert health['database'] == 'connected'
         assert 'app_version' in health
-        assert health['app_version'] == '6.0'
+        assert health['app_version'] == '10'
 
 
 class TestMaintenanceService:

@@ -1,8 +1,44 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, render_template
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def setup_logging(app):
+    log_level = logging.DEBUG if app.debug else logging.INFO
+
+    handler = RotatingFileHandler(
+        os.path.join(app.root_path, 'logs', 'socialsense.log'),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+    )
+    handler.setLevel(log_level)
+    formatter = logging.Formatter(
+        '%(asctime)s %(levelname)s [%(name)s] %(message)s'
+    )
+    handler.setFormatter(formatter)
+
+    sqlalchemy_logger = logging.getLogger('sqlalchemy.engine')
+    sqlalchemy_logger.setLevel(logging.WARNING)
+
+    celery_logger = logging.getLogger('celery')
+    celery_logger.setLevel(log_level)
+    celery_logger.addHandler(handler)
+
+    redis_logger = logging.getLogger('redis')
+    redis_logger.setLevel(logging.WARNING)
+
+    app.logger.addHandler(handler)
+    app.logger.setLevel(log_level)
+
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(log_level)
+
+    return handler
 
 
 def create_app(config_name=None):
@@ -25,6 +61,10 @@ def create_app(config_name=None):
     app.config['MAX_JOB_RUNTIME'] = int(os.environ.get('MAX_JOB_RUNTIME', '600'))
     app.config['JOB_HISTORY_RETENTION_DAYS'] = int(os.environ.get('JOB_HISTORY_RETENTION_DAYS', '30'))
     app.config['MAX_JOB_RETRIES'] = int(os.environ.get('MAX_JOB_RETRIES', '3'))
+
+    if not app.config.get('TESTING'):
+        os.makedirs(os.path.join(app.root_path, 'logs'), exist_ok=True)
+        setup_logging(app)
 
     from database import init_db
     init_db(app)
@@ -59,10 +99,27 @@ def create_app(config_name=None):
     app.register_blueprint(trend_bp)
     app.register_blueprint(admin_bp)
 
+    from routes.health_routes import health_bp
+    app.register_blueprint(health_bp)
+
+    use_celery = app.config.get('USE_CELERY', False)
+
     from services.background_worker import BackgroundWorker
-    worker = BackgroundWorker()
-    worker.recover_stuck_jobs(app)
+    worker = BackgroundWorker(use_celery=use_celery)
+    if not use_celery:
+        worker.recover_stuck_jobs(app)
     app.config['_worker'] = worker
+
+    if use_celery:
+        try:
+            from services.redis_service import redis_service
+            redis_service.check_connection()
+            app.logger.info('Redis connection established')
+        except Exception as e:
+            app.logger.warning(f'Redis connection failed: {e}')
+
+    from services.redis_service import redis_service
+    app.config['_redis_service'] = redis_service
 
     @app.context_processor
     def inject_globals():

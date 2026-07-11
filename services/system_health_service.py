@@ -1,9 +1,14 @@
+import logging
 from flask import current_app
 from repositories.job_repository import JobRepository
 from repositories.notification_repository import NotificationRepository
 from repositories.activity_log_repository import ActivityLogRepository
 from repositories.scheduled_report_repository import ScheduledReportRepository
 from services.notification_service import NotificationService
+from services.database_health_service import database_health_service
+from services.redis_service import redis_service
+
+logger = logging.getLogger(__name__)
 
 
 class SystemHealthService:
@@ -19,12 +24,35 @@ class SystemHealthService:
         except Exception:
             db_ok = False
 
+        redis_ok = redis_service.check_connection()
+        pool_usage = database_health_service.get_pool_usage() if db_ok else {}
+        db_size = database_health_service.get_database_size() if db_ok else 'unknown'
+        migration = database_health_service.get_migration_status() if db_ok else {}
+
+        celery_ok = False
+        active_workers = 0
+        active_jobs = 0
+        queue_length = 0
+        try:
+            from celery_app import celery_app
+            inspector = celery_app.control.inspect()
+            active = inspector.active() or {}
+            active_workers = len(active)
+            active_jobs = sum(len(tasks) for tasks in active.values())
+            celery_ok = True
+        except Exception:
+            pass
+
+        try:
+            queue_length = redis_service.get_queue_length('celery')
+        except Exception:
+            pass
+
         from models.job import Job
         pending = self.job_repo.count_all_by_status(Job.PENDING)
         running = self.job_repo.count_all_by_status(Job.RUNNING)
         failed = self.job_repo.count_all_by_status(Job.FAILED)
 
-        from models.job import Job
         latest = Job.query.order_by(Job.created_at.desc()).first()
 
         app = current_app._get_current_object() if current_app else None
@@ -34,13 +62,24 @@ class SystemHealthService:
 
         return {
             'database': 'connected' if db_ok else 'error',
+            'redis_status': 'connected' if redis_ok else 'disconnected',
+            'celery_status': 'connected' if celery_ok else 'disconnected',
             'worker_status': 'active' if running > 0 else 'idle',
             'pending_jobs': pending,
             'running_jobs': running,
             'failed_jobs': failed,
+            'queue_length': queue_length,
+            'active_workers': active_workers,
+            'active_jobs': active_jobs,
+            'pool_size': pool_usage.get('size', 0),
+            'pool_checkedout': pool_usage.get('checkedout', 0),
+            'pool_overflow': pool_usage.get('overflow', 0),
+            'database_size': db_size,
+            'database_uptime': f'{database_health_service.get_uptime():.0f}s',
+            'migration_version': migration.get('current_version'),
             'latest_job_id': latest.id if latest else None,
             'latest_job_status': latest.status if latest else None,
-            'app_version': '6.0',
+            'app_version': '10',
             'environment': app.config.get('ENV', 'development') if app else 'unknown',
             'youtube_api': 'configured' if yt_key else 'missing',
             'reddit_api': 'configured' if (reddit_id and reddit_secret) else 'missing',

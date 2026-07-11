@@ -56,19 +56,43 @@ class ThreadPoolQueueProvider(BaseQueueProvider):
 
 class CeleryQueueProvider(BaseQueueProvider):
     def __init__(self):
-        raise NotImplementedError('Celery integration not yet implemented')
+        from celery_app import celery_app
+        self.celery_app = celery_app
+        self._active = {}
 
     def submit(self, fn, *args, **kwargs):
-        raise NotImplementedError('Celery integration not yet implemented')
+        from celery_tasks import run_analysis
+        job_id = args[0] if args else kwargs.get('job_id')
+        result = run_analysis.delay(job_id=job_id)
+        self._active[job_id] = result.id
+        return result
 
     def shutdown(self, wait=True):
         pass
 
     def get_active_count(self):
-        return 0
+        from celery_app import celery_app
+        try:
+            inspector = celery_app.control.inspect()
+            active = inspector.active() or {}
+            count = sum(len(tasks) for tasks in active.values())
+            return count
+        except Exception:
+            return 0
 
     def get_queue_size(self):
-        return 0
+        try:
+            from services.redis_service import redis_service
+            return redis_service.get_queue_length('celery')
+        except Exception:
+            from celery_app import celery_app
+            try:
+                inspector = celery_app.control.inspect()
+                reserved = inspector.reserved() or {}
+                count = sum(len(tasks) for tasks in reserved.values())
+                return count
+            except Exception:
+                return 0
 
 
 class RQQueueProvider(BaseQueueProvider):

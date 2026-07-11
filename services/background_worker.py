@@ -1,4 +1,5 @@
 import traceback
+import logging
 from datetime import datetime, timezone
 from flask import current_app
 from database import db
@@ -6,15 +7,23 @@ from models.job import Job
 from repositories.job_repository import JobRepository
 from repositories.job_log_repository import JobLogRepository
 from services.analysis_service import AnalysisService
-from services.job_queue_interface import ThreadPoolQueueProvider
+from services.job_queue_interface import ThreadPoolQueueProvider, CeleryQueueProvider
+
+logger = logging.getLogger(__name__)
 
 
 class BackgroundWorker:
-    def __init__(self, queue_provider=None):
+    def __init__(self, queue_provider=None, use_celery=False):
         self.job_repo = JobRepository()
         self.log_repo = JobLogRepository()
         self.analysis_service = AnalysisService()
-        self.queue = queue_provider or ThreadPoolQueueProvider(max_workers=4)
+        self._use_celery = use_celery
+        if queue_provider:
+            self.queue = queue_provider
+        elif use_celery:
+            self.queue = CeleryQueueProvider()
+        else:
+            self.queue = ThreadPoolQueueProvider(max_workers=4)
         self._recovered = False
 
     def recover_stuck_jobs(self, app):
@@ -28,6 +37,9 @@ class BackgroundWorker:
 
     def submit_analysis(self, job_id, app):
         if app and app.config.get('TESTING'):
+            if self._use_celery:
+                from celery_tasks import run_analysis
+                return run_analysis.delay(job_id=job_id)
             self._run_analysis(job_id, app)
             return None
         future = self.queue.submit(self._run_analysis, job_id, app)
@@ -153,6 +165,7 @@ class BackgroundWorker:
 
             except Exception as e:
                 error_msg = f'{type(e).__name__}: {str(e)}'
+                logger.error(f'Background worker failed for job {job_id}: {error_msg}', exc_info=True)
                 self.job_repo.mark_failed(job_id, error_msg)
                 self.log_repo.create_log(job_id, 'ERROR', error_msg, 'Error', metadata_json=traceback.format_exc())
 
