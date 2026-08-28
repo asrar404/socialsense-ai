@@ -153,6 +153,15 @@ class BackgroundWorker:
 
                 self._check_cancelled(job_id)
 
+                self.job_repo.update_progress(job_id, 98, 'Running Authenticity Engine')
+                self.log_repo.create_log(job_id, 'INFO', 'Running authenticity intelligence engine.', 'Authenticity')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 99, 'Saving Media Analysis')
+
+                self._check_cancelled(job_id)
+
                 self.job_repo.update_progress(job_id, 95, 'Generating Exports')
                 self.log_repo.create_log(job_id, 'INFO', f'Analysis complete. {result["comment_count"]} comments processed.', 'Complete')
 
@@ -164,6 +173,7 @@ class BackgroundWorker:
                 self.log_repo.create_log(job_id, 'INFO', 'Job cancelled by user.', 'Cancellation')
 
             except Exception as e:
+                db.session.rollback()
                 error_msg = f'{type(e).__name__}: {str(e)}'
                 logger.error(f'Background worker failed for job {job_id}: {error_msg}', exc_info=True)
                 self.job_repo.mark_failed(job_id, error_msg)

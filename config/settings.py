@@ -69,6 +69,14 @@ class Config:
     MAX_HISTORY_VIDEOS = int(os.environ.get('MAX_HISTORY_VIDEOS', '100'))
     MAX_ENTITY_HISTORY = int(os.environ.get('MAX_ENTITY_HISTORY', '500'))
 
+    ENABLE_MEDIA_ANALYSIS = os.environ.get('ENABLE_MEDIA_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_THUMBNAIL_ANALYSIS = os.environ.get('ENABLE_THUMBNAIL_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_AUDIO_ANALYSIS = os.environ.get('ENABLE_AUDIO_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_FRAME_ANALYSIS = os.environ.get('ENABLE_FRAME_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_METADATA_ANALYSIS = os.environ.get('ENABLE_METADATA_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_AUTHENTICITY_ENGINE = os.environ.get('ENABLE_AUTHENTICITY_ENGINE', 'true').lower() == 'true'
+    MAX_VIDEO_FRAMES = int(os.environ.get('MAX_VIDEO_FRAMES', '30'))
+
     USE_CELERY = os.environ.get('USE_CELERY', 'false').lower() == 'true'
 
 

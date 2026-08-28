@@ -56,6 +56,28 @@ class ExportService:
                 writer.writerow([line])
             writer.writerow([])
 
+        from models.media_analysis import MediaAnalysis
+        media = MediaAnalysis.query.filter_by(analysis_id=analysis_id).first()
+        if media:
+            writer.writerow(['# Authenticity Intelligence (heuristic)'])
+            writer.writerow(['Overall AI Probability', media.overall_ai_probability])
+            writer.writerow(['Overall Authenticity Score', media.overall_authenticity_score])
+            writer.writerow(['Confidence', media.confidence])
+            writer.writerow(['Deepfake Score', media.deepfake_score])
+            writer.writerow(['Synthetic Voice Score', media.synthetic_voice_score])
+            writer.writerow(['Thumbnail AI Score', media.thumbnail_ai_score])
+            writer.writerow(['Frame Manipulation Score', media.frame_manipulation_score])
+            writer.writerow(['Metadata Score', media.metadata_score])
+            writer.writerow(['Summary', media.summary or ''])
+            if media.reasons:
+                try:
+                    reasons = json.loads(media.reasons)
+                    for reason in reasons:
+                        writer.writerow(['Reason', reason])
+                except (ValueError, TypeError):
+                    writer.writerow(['Reason', media.reasons])
+            writer.writerow([])
+
         from models.video_context_history import VideoContextHistory
         vch = VideoContextHistory.query.filter_by(analysis_id=analysis_id).first()
         history_context_score = vch.avg_sentiment if vch else ''
@@ -249,6 +271,11 @@ class ExportService:
             'comment_count': len(comments_data),
             'comments': comments_data,
         }
+
+        from models.media_analysis import MediaAnalysis
+        media = MediaAnalysis.query.filter_by(analysis_id=analysis_id).first()
+        if media:
+            data['media_analysis'] = media.to_dict()
 
         from models.entity import Entity
         from services.entity_summary_service import EntitySummaryService

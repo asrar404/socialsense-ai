@@ -37,6 +37,8 @@ from services.channel_context_service import ChannelContextService
 from services.video_history_service import VideoHistoryService
 from services.entity_history_service import EntityHistoryService
 from services.context_intelligence_service import ContextIntelligenceService
+from services.authenticity_service import AuthenticityService
+from models.media_analysis import MediaAnalysis
 
 
 class AnalysisService:
@@ -62,6 +64,7 @@ class AnalysisService:
         self.video_history = VideoHistoryService()
         self.entity_history = EntityHistoryService()
         self.context_intelligence = ContextIntelligenceService()
+        self.authenticity_service = AuthenticityService()
 
     def create_youtube_analysis(self, user_id, video_url, comment_limit=100):
         video_id = self.youtube_service.extract_video_id(video_url)
@@ -168,6 +171,7 @@ class AnalysisService:
                     transcript_obj.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 current_app.logger.warning(f'Transcript processing failed: {e}')
 
         entities = []
@@ -260,6 +264,7 @@ class AnalysisService:
                 entity_summary_data = self.entity_summary.generate_summary(entities, entity_sentiments, entity_risks)
 
             except Exception as e:
+                db.session.rollback()
                 current_app.logger.warning(f'Entity intelligence failed: {e}')
 
         if current_app.config.get('ENABLE_CHANNEL_INTELLIGENCE', True):
@@ -304,7 +309,23 @@ class AnalysisService:
                     current_risk=avg_r,
                 )
             except Exception as e:
+                db.session.rollback()
                 current_app.logger.warning(f'Channel intelligence failed: {e}')
+
+        if current_app.config.get('ENABLE_AUTHENTICITY_ENGINE', True):
+            try:
+                transcript_text = transcript_obj.transcript_text if transcript_obj and transcript_obj.is_available else None
+                self.authenticity_service.analyze(
+                    analysis,
+                    video_info=video_info,
+                    transcript_text=transcript_text,
+                    thumbnail_url=None,
+                    demo_mode=is_demo,
+                    key=video_id,
+                )
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.warning(f'Authenticity intelligence failed: {e}')
 
         return {
             'success': True,
@@ -437,6 +458,7 @@ class AnalysisService:
                     db.session.commit()
                 entity_summary_data = self.entity_summary.generate_summary(entities, entity_sentiments, entity_risks)
             except Exception as e:
+                db.session.rollback()
                 current_app.logger.warning(f'Entity intelligence failed: {e}')
 
         if current_app.config.get('ENABLE_CHANNEL_INTELLIGENCE', True):
@@ -474,7 +496,22 @@ class AnalysisService:
 
                     self.channel_service.update_channel_stats(user_id, channel_id)
             except Exception as e:
+                db.session.rollback()
                 current_app.logger.warning(f'Channel intelligence failed: {e}')
+
+        if current_app.config.get('ENABLE_AUTHENTICITY_ENGINE', True):
+            try:
+                self.authenticity_service.analyze(
+                    analysis,
+                    video_info=post_info,
+                    transcript_text=post_info.get('body', ''),
+                    thumbnail_url=None,
+                    demo_mode=is_demo,
+                    key=post_info.get('post_id', ''),
+                )
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.warning(f'Authenticity intelligence failed: {e}')
 
         return {
             'success': True,
@@ -724,6 +761,7 @@ class AnalysisService:
                     channel_data = channel_obj
                     context_intelligence = context_intel
                 except Exception as e:
+                    db.session.rollback()
                     current_app.logger.warning(f'Context intelligence lookup failed: {e}')
 
         result = {
@@ -741,6 +779,7 @@ class AnalysisService:
             'entity_summary': entity_summary_data_list if youtube or (reddit and analysis.analysis_type == 'reddit') else {},
             'context_intelligence': context_intelligence,
             'channel_data': channel_data,
+            'media_analysis': self.authenticity_service.get_media_analysis(analysis_id),
         }
 
         entity_objects = Entity.query.filter_by(analysis_id=analysis_id).order_by(Entity.importance_score.desc()).limit(20).all()
@@ -834,6 +873,26 @@ class AnalysisService:
         if avg_all_risk > 75:
             community_health = 'Critical'
 
+        ai_videos = 0
+        authentic_videos = 0
+        deepfake_count = 0
+        voice_clone_count = 0
+        authenticity_total = 0.0
+        authenticity_count = 0
+        for analysis in analyses:
+            ma = analysis.media_analysis
+            if ma:
+                authenticity_total += ma.overall_authenticity_score or 0.0
+                authenticity_count += 1
+                if (ma.overall_ai_probability or 0.0) >= 60.0:
+                    ai_videos += 1
+                elif (ma.overall_authenticity_score or 0.0) >= 60.0:
+                    authentic_videos += 1
+                if (ma.deepfake_score or 0.0) >= 60.0:
+                    deepfake_count += 1
+                if (ma.synthetic_voice_score or 0.0) >= 60.0:
+                    voice_clone_count += 1
+
         return {
             'total_analyses': total_analyses,
             'total_comments': total_comments,
@@ -854,6 +913,11 @@ class AnalysisService:
             'entity_risk_high': entity_risk_high,
             'entity_risk_critical': entity_risk_critical,
             'total_videos_analyzed': VideoContextHistory.query.filter_by(user_id=user_id).count(),
+            'ai_videos': ai_videos,
+            'authentic_videos': authentic_videos,
+            'deepfake_count': deepfake_count,
+            'voice_clone_count': voice_clone_count,
+            'avg_authenticity': round(authenticity_total / max(authenticity_count, 1), 1),
         }
 
     def get_all_user_analyses_with_data(self, user_id, limit=None):

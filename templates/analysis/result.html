@@ -363,6 +363,98 @@
 </div>
 {% endif %}
 
+{% if data.media_analysis %}
+<div class="card border-warning border-opacity-25 mb-4">
+    <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-shield-halved me-2 text-warning"></i>Authenticity Intelligence</h6>
+        <span class="badge bg-secondary">heuristic assessment</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">AI Probability</small>
+                    <span class="fw-bold fs-4 text-danger">{{ data.media_analysis.overall_ai_probability }}%</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Authenticity Score</small>
+                    <span class="fw-bold fs-4 text-success">{{ data.media_analysis.overall_authenticity_score }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Confidence</small>
+                    <span class="fw-bold fs-4 text-info">{{ data.media_analysis.confidence }}%</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Summary</small>
+                    <span class="small">{{ data.media_analysis.summary or 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-2">
+                <div class="p-2 bg-dark rounded text-center">
+                    <small class="text-muted d-block">Deepfake</small>
+                    <span class="fw-bold text-warning">{{ data.media_analysis.deepfake_score }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="p-2 bg-dark rounded text-center">
+                    <small class="text-muted d-block">Synthetic Voice</small>
+                    <span class="fw-bold text-warning">{{ data.media_analysis.synthetic_voice_score }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="p-2 bg-dark rounded text-center">
+                    <small class="text-muted d-block">Thumbnail</small>
+                    <span class="fw-bold text-warning">{{ data.media_analysis.thumbnail_ai_score }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="p-2 bg-dark rounded text-center">
+                    <small class="text-muted d-block">Frame Manipulation</small>
+                    <span class="fw-bold text-warning">{{ data.media_analysis.frame_manipulation_score }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="p-2 bg-dark rounded text-center">
+                    <small class="text-muted d-block">Metadata</small>
+                    <span class="fw-bold text-warning">{{ data.media_analysis.metadata_score }}</span>
+                </div>
+            </div>
+        </div>
+        {% if data.media_analysis.indicators %}
+        <div class="mb-2">
+            <small class="text-muted">Indicators: </small>
+            {% for indicator in data.media_analysis.indicators[:10] %}
+            <span class="badge bg-warning text-dark me-1">{{ indicator }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if data.media_analysis.reasons %}
+        <div class="bg-dark rounded p-3">
+            <h6 class="small text-muted mb-2"><i class="fas fa-list-check me-1"></i>Explainable Reasons</h6>
+            <ul class="small mb-0 ps-3">
+                {% for reason in data.media_analysis.reasons[:12] %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <p class="small text-muted mt-2 mb-0">
+            <i class="fas fa-circle-info me-1"></i>
+            This is a heuristic, explainable assessment based on available signals. It indicates
+            possible AI-generated content but does not constitute proof of synthetic media.
+        </p>
+    </div>
+</div>
+{% endif %}
+
 {% if data.entities %}
 <div class="card border-secondary bg-dark mb-4">
     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
